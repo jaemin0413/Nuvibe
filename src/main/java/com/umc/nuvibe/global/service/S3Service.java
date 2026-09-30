@@ -38,8 +38,6 @@ public class S3Service {
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
 
-    private static final String REGION = "ap-northeast-2";
-
     // 이미지 확장자 화이트리스트
     private static final List<String> IMAGE_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif");
 
@@ -68,7 +66,8 @@ public class S3Service {
         PresignedPutObjectRequest presignedPutObjectRequest = s3Presigner.presignPutObject(presignRequest);
         String url = presignedPutObjectRequest.url().toString();
 
-        log.info("Presigned URL 발급 완료: {}", url);
+        // url은 다 남기지 않게
+        log.info("Presigned URL 발급 완료: fileName={}", fileName);
 
         return new PreSignedUrlRes(url, fileName);
     }
@@ -119,10 +118,6 @@ public class S3Service {
         }
     }
 
-    // fileName을 실제 S3 URL로 변환
-    public String getS3Url(String fileName) {
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucket, REGION, fileName);
-    }
 
 
     // 파일 확장자 검증

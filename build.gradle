@@ -47,7 +47,8 @@ dependencies {
 	// aws s3
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.4.0'
 
-	// aws sqs
+	// aws sqs를 rabbitMQ로 대체, amqp 의존성 추가
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs:3.4.0'
 
 	// db

@@ -11,18 +11,28 @@ spring:
         format_sql: true
     show-sql: true
 
-  cloud:
-    aws:
-      credentials:
-        access-key: ${AWS_ACCESS_KEY}
-        secret-key: ${AWS_SECRET_KEY}
-      region:
-        static: ap-northeast-2 # 서울
-      s3:
-        bucket: ${AWS_S3_BUCKET}
-      sqs:
-        queue:
-          name: ${AWS_QUEUE_NAME}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:nuvibe}
+
+# 홈서버로 마이그레이션하기 때문에 더 이상 사용하지 x
+#  cloud:
+#    aws:
+#      credentials:
+#        access-key: ${S3_ACCESS_KEY} # AWS에서 MinIO 전용 키로 대체
+#        secret-key: ${S3_SECRET_KEY}
+#      region:
+#        static: ${S3_REGION:us-east-1}  # 서울
+#      s3:
+#        bucket: ${S3_BUCKET}
+#        endpoint: ${S3_ENDPOINT} # MinIO API 주소
+#        path-style-access-enabled: true # 버킷명을 주소의 경로에 넣는 것
+#      sqs:
+#        queue:
+#          name: ${AWS_QUEUE_NAME}
 
   servlet:
     multipart:
@@ -87,3 +97,7 @@ logging:
 
 frontend:
   url: ${FRONT_URL:http://localhost:3000}
+
+app:
+  image-processing:
+    queue: ${IMAGE_PROCESSING_QUEUE:image.raw.uploaded}
