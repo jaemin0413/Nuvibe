@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -190,5 +191,32 @@ public class S3Service {
 
         s3Client.putObject(request, RequestBody.fromBytes(content));
     }
+
+
+    // 비공개 객체를 조회할 수 있는 임시 GET URL 발급
+    // 객체 키를 전달하면 조회할 수 있는 url을 주는거임
+    public String createPresignedGetUrl(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            throw new IllegalArgumentException("객체 키가 비어 있습니다.");
+        }
+
+        GetObjectRequest objectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .build();
+
+        GetObjectPresignRequest presignRequest =
+                GetObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofMinutes(15))
+                        .getObjectRequest(objectRequest)
+                        .build();
+
+        return s3Presigner.presignGetObject(presignRequest)
+                .url()
+                .toString();
+    }
+
+
+
 
 }
