@@ -17,6 +17,16 @@ spring:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
     virtual-host: ${RABBITMQ_VHOST:nuvibe}
+    # 일단은 dlq 없이
+    listener:
+      type: simple
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+        prefetch: 1
+        retry:
+          enabled: false
+
 
   cloud:
     aws:
@@ -102,4 +112,4 @@ frontend:
 app:
   image-processing:
     queue: ${IMAGE_PROCESSING_QUEUE:image.raw.uploaded}
-    enabled: ${IMAGE_PROCESSING_ENABLED:false}
+    enabled: ${IMAGE_PROCESSING_ENABLED:true}
