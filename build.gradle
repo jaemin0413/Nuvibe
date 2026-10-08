@@ -81,6 +81,7 @@ dependencies {
 
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
+// jar 이름 누바이브로 고정
+tasks.named('bootJar') {
+	archiveFileName = 'nuvibe.jar'
 }

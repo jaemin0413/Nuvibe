@@ -16,7 +16,7 @@ ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
 
 # 빌드된 JAR 파일 복사
-COPY build/libs/*.jar app.jar
+COPY build/libs/nuvibe.jar app.jar
 
 # 애플리케이션 실행
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.awt.headless=true", "-jar", "app.jar"]
