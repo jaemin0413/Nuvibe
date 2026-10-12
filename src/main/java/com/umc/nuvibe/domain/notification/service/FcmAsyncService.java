@@ -13,6 +13,7 @@ import com.umc.nuvibe.domain.user.repository.UserRepository;
 import com.umc.nuvibe.domain.user.vo.UserSetting;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,8 @@ public class FcmAsyncService {
     private final FcmDbService fcmDbService;
     private final FcmTokenService fcmTokenService;
     private final UserRepository userRepository;
+    @Value("${firebase.enabled:false}")
+    private boolean firebaseEnabled;
 
     @Async
     public void sendNotification(User user, NotificationType type, String tag, Long relatedId, Long tribeId) {
@@ -44,7 +47,8 @@ public class FcmAsyncService {
         }
 
         // 3. 푸시 메시지가 없으면 FCM 발송 스킵
-        if (type.getPushMessage() == null) {
+        // fcm 꺼둠 나중에 켜면 쓰게
+        if (!firebaseEnabled || type.getPushMessage() == null) {
             return;
         }
 

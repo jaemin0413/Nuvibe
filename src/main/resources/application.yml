@@ -73,7 +73,8 @@ jwt:
   refresh-token-validity: ${JWT_REFRESH_TOKEN_VALIDITY}
 
 firebase:
-  credentials-path: ${FIREBASE_CREDENTIALS_PATH}
+  enabled: ${FIREBASE_ENABLED:false}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
 
 
 # OAuth2 소셜 로그인 설정
