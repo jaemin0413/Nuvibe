@@ -1,0 +1,40 @@
+
+name: Home Server Connection Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  connection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.ref == 'refs/heads/dev'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:nuvibe-ci
+
+      - name: Verify Apps SSH connection
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: 100.66.12.112
+          username: promevious
+          port: 22
+          key: ${{ secrets.NUVIBE_SSH_PRIVATE_KEY }}
+          fingerprint: SHA256:HlEKYC5U0gdyYjoAPf29iLRL5X35OEsxdsBRT2WhK0o
+          timeout: 30s
+          command_timeout: 30s
+          script: |
+            set -eu
+            hostname
+            whoami
+            docker --version
+            docker compose version
