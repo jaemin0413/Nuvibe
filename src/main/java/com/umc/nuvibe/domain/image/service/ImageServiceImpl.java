@@ -44,7 +44,6 @@ public class ImageServiceImpl implements ImageService {
         String pureFileName = preSignedUrl.fileName().replace("raw/", "");
 
         Image pendingImage = Image.builder()
-                .imageUrl(preSignedUrl.url()) // Presigned URL (raw/ 경로)
                 .fileName(pureFileName)        // "uuid.jpg" (prefix 제거)
                 .imageTag(tag)
                 .status(ImageStatus.PENDING)
@@ -75,7 +74,20 @@ public class ImageServiceImpl implements ImageService {
             throw new BusinessException(ImageErrorCode.IMAGE_ACCESS_DENIED);
         }
 
-        return ImageDetailRes.from(image, user, board);
+        // 권한 확인을 통과한 뒤에만 조회 URL을 발급한다.
+        String originalKey = image.getOriginalObjectKey();
+
+        if (image.getStatus() != ImageStatus.ACTIVE
+                || originalKey == null
+                || originalKey.isBlank()) {
+            throw new BusinessException(
+                    ImageErrorCode.IMAGE_UPLOAD_NOT_COMPLETED
+            );
+        }
+
+        String imageUrl = s3Service.createPresignedGetUrl(originalKey);
+
+        return ImageDetailRes.from(image, user, board, imageUrl);
     }
 
     @Override

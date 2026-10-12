@@ -27,6 +27,13 @@ public class Image extends BaseEntity {
     @Column(name = "thumbnail_url", length = 512)
     private String thumbnailUrl;
 
+    // 각각 url 대신 uuid 저장함 이제
+    @Column(name = "original_object_key", length = 512)
+    private String originalObjectKey;
+
+    @Column(name = "thumbnail_object_key", length = 512)
+    private String thumbnailObjectKey;
+
     @Enumerated(EnumType.STRING)
     private ImageTag imageTag;
 
@@ -51,6 +58,21 @@ public class Image extends BaseEntity {
         return (thumbnailUrl != null && !thumbnailUrl.isBlank())
             ? thumbnailUrl
             : imageUrl;
+    }
+
+    // 객체키 업데이트
+    public void updateObjectKeys(
+            String originalObjectKey,
+            String thumbnailObjectKey
+    ) {
+        if (originalObjectKey == null || originalObjectKey.isBlank()
+                || thumbnailObjectKey == null
+                || thumbnailObjectKey.isBlank()) {
+            throw new IllegalArgumentException("이미지 객체 키가 비어 있습니다.");
+        }
+
+        this.originalObjectKey = originalObjectKey;
+        this.thumbnailObjectKey = thumbnailObjectKey;
     }
 
     public void updateThumbnailUrl(String newUrl) {

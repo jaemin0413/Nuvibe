@@ -16,12 +16,18 @@ public record ImageDetailRes(
         String imageUrl,
         LocalDateTime createdAt
 ) {
-    public static ImageDetailRes from(Image image, User user, ArchiveBoard board) {
+
+    public static ImageDetailRes from(
+            Image image,
+            User user,
+            ArchiveBoard board,
+            String imageUrl
+    ) {
         return new ImageDetailRes(
                 user.getName(),
                 board.getName(),
                 image.getImageTag(),
-                image.getImageUrl(),
+                imageUrl,
                 image.getCreatedAt()
         );
     }

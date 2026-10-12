@@ -12,10 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -37,8 +40,6 @@ public class S3Service {
 
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
-
-    private static final String REGION = "ap-northeast-2";
 
     // 이미지 확장자 화이트리스트
     private static final List<String> IMAGE_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif");
@@ -68,7 +69,8 @@ public class S3Service {
         PresignedPutObjectRequest presignedPutObjectRequest = s3Presigner.presignPutObject(presignRequest);
         String url = presignedPutObjectRequest.url().toString();
 
-        log.info("Presigned URL 발급 완료: {}", url);
+        // url은 다 남기지 않게
+        log.info("Presigned URL 발급 완료: fileName={}", fileName);
 
         return new PreSignedUrlRes(url, fileName);
     }
@@ -119,10 +121,6 @@ public class S3Service {
         }
     }
 
-    // fileName을 실제 S3 URL로 변환
-    public String getS3Url(String fileName) {
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucket, REGION, fileName);
-    }
 
 
     // 파일 확장자 검증
@@ -165,5 +163,60 @@ public class S3Service {
         }
         return fileName;
     }
+
+
+
+    // MinIO에 저장된 객체 내려받는 용도. 이미지 처리 전에 원본 내려받는거임
+    // 파일 전체를 메모리에 올리기 때문에 일단 나중에 리팩토링 해봐야할듯
+    public byte[] downloadBytes(String objectKey) {
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey) // 버킷 안의 경로객체임
+                .build();
+
+        return s3Client.getObjectAsBytes(request).asByteArray();
+    }
+
+    // 바이트배열을 MinIO의 지정경로에 처리 결과를 저장한다. 썸네일이랑 기타등등 object키 그대로 쓰기 때문에 리팩필요할듯?
+    public void uploadBytes(
+            String objectKey,
+            byte[] content,
+            String contentType
+    ) {
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .contentType(contentType)
+                .build();
+
+        s3Client.putObject(request, RequestBody.fromBytes(content));
+    }
+
+
+    // 비공개 객체를 조회할 수 있는 임시 GET URL 발급
+    // 객체 키를 전달하면 조회할 수 있는 url을 주는거임
+    public String createPresignedGetUrl(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            throw new IllegalArgumentException("객체 키가 비어 있습니다.");
+        }
+
+        GetObjectRequest objectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .build();
+
+        GetObjectPresignRequest presignRequest =
+                GetObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofMinutes(15))
+                        .getObjectRequest(objectRequest)
+                        .build();
+
+        return s3Presigner.presignGetObject(presignRequest)
+                .url()
+                .toString();
+    }
+
+
+
 
 }
