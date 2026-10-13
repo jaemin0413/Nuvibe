@@ -6,6 +6,7 @@ import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource; // 추가됨
 
@@ -14,8 +15,12 @@ import java.io.InputStream;
 
 @Slf4j
 @Configuration
+@ConditionalOnProperty(
+        prefix = "firebase",
+        name = "enabled",
+        havingValue = "true"
+)
 public class FcmConfig {
-
     @Value("${firebase.credentials-path}")
     private String firebaseCredentialsPath; // 변수명을 의미에 맞게 수정 (선택사항)
 

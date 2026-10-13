@@ -1,0 +1,79 @@
+
+name: nuvibe
+
+services:
+  app:
+    image: ${NUVIBE_IMAGE:?required}
+    container_name: nuvibe-app
+    restart: unless-stopped
+    mem_limit: 1g
+    stop_grace_period: 30s
+
+    ports:
+      - "100.66.12.112:8080:8080"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60.0"
+
+      # DATA VM의 운영 DB
+      PROD_DB_URL: "jdbc:mysql://100.66.133.99:3306/nuvibe"
+      PROD_DB_USERNAME: nuvibe_app
+      PROD_DB_PASSWORD: ${PROD_DB_PASSWORD:?required}
+
+      # MinIO
+      S3_ENDPOINT: "http://100.66.133.99:9000"
+      S3_REGION: us-east-1
+      S3_BUCKET: nuvibe
+      S3_ACCESS_KEY: nuvibe-storage
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?required}
+
+      # RabbitMQ 소비자
+      RABBITMQ_HOST: "100.66.133.99"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: nuvibe_worker
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?required}
+      RABBITMQ_VHOST: nuvibe
+      IMAGE_PROCESSING_QUEUE: image.raw.uploaded
+      IMAGE_PROCESSING_ENABLED: "true"
+
+      # JWT
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?required}
+      JWT_ACCESS_TOKEN_VALIDITY: ${JWT_ACCESS_TOKEN_VALIDITY:?required}
+      JWT_REFRESH_TOKEN_VALIDITY: ${JWT_REFRESH_TOKEN_VALIDITY:?required}
+
+      # 메일 및 초기 테스트 주소
+      GMAIL_ADDRESS: ${GMAIL_ADDRESS:?required}
+      GMAIL_PASSWORD: ${GMAIL_PASSWORD:?required}
+      SERVER_URL: "http://100.66.12.112:8080"
+      FRONT_URL: ${FRONT_URL:-http://localhost:3000}
+
+      # OAuth2
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+      FIREBASE_ENABLED: "false"
+
+    volumes:
+      - app_logs:/logs
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  app_logs:
