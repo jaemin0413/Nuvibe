@@ -1,7 +1,15 @@
-name: Home Server Connection Check
+name: Nuvibe Home Server CI/CD
 
 on:
+  push:
+    branches:
+      - dev
   workflow_dispatch:
+
+# 배포가 동시에 실행되지 않도록 제한
+concurrency:
+  group: nuvibe-home-dev
+  cancel-in-progress: false
 
 jobs:
   # jar 빌드 후 도커 이미지 게시
@@ -27,13 +35,14 @@ jobs:
           distribution: temurin
           cache: gradle
 
+      # 실행 가능한 jar 생성
       - name: Build executable JAR
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon clean bootJar
           test -s build/libs/nuvibe.jar
 
-      # 도커 이미지 빌드
+      # 도커 이미지 빌드 설정
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -44,6 +53,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 커밋별 태그로 도커 이미지 게시
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -52,12 +62,12 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/nuvibe:sha-${{ github.sha }}
 
-  # 이미지 게시 성공 후 홈서버 연결 확인
-  connection:
-    name: Verify Home Server Connection
+  # 이미지 게시 성공 후 홈서버 배포
+  deploy:
+    name: Deploy to Home Server
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/dev'
 
     permissions:
@@ -66,6 +76,10 @@ jobs:
       id-token: write
 
     steps:
+      # 저장소 접근
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       # 배포용 태그로 Tailscale에 임시 연결
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
@@ -74,20 +88,122 @@ jobs:
           audience: ${{ secrets.TS_AUDIENCE }}
           tags: tag:nuvibe-ci
 
-      # 호스트 키 검증 및 SSH 로그인
-      - name: Verify Apps SSH connection
+      # 배포 환경변수 및 컴포즈 파일 전달 준비
+      - name: Prepare deployment variables
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          NUVIBE_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/nuvibe:sha-${{ github.sha }}
+          PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          JWT_ACCESS_TOKEN_VALIDITY: ${{ secrets.JWT_ACCESS_TOKEN_VALIDITY }}
+          JWT_REFRESH_TOKEN_VALIDITY: ${{ secrets.JWT_REFRESH_TOKEN_VALIDITY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          test -s compose.home.yml
+
+          names=(
+            DOCKERHUB_USERNAME
+            DOCKERHUB_TOKEN
+            NUVIBE_IMAGE
+            PROD_DB_PASSWORD
+            S3_SECRET_KEY
+            RABBITMQ_PASSWORD
+            JWT_SECRET_KEY
+            JWT_ACCESS_TOKEN_VALIDITY
+            JWT_REFRESH_TOKEN_VALIDITY
+            GMAIL_ADDRESS
+            GMAIL_PASSWORD
+          )
+
+          DEPLOY_PAYLOAD="$(
+            {
+              for name in "${names[@]}"; do
+                if [[ -z "${!name}" ]]; then
+                  echo "필수 환경변수 누락: $name" >&2
+                  exit 1
+                fi
+
+                # 비밀값의 특수문자가 명령어로 해석되지 않도록 처리
+                printf 'export %s=%q\n' "$name" "${!name}"
+              done
+
+              # 이번 커밋의 compose 파일도 함께 전달
+              printf 'export COMPOSE_HOME_B64=%q\n' \
+                "$(base64 -w 0 compose.home.yml)"
+            } | base64 -w 0
+          )"
+
+          # 인코딩한 값도 로그에서 숨김
+          echo "::add-mask::$DEPLOY_PAYLOAD"
+          printf 'DEPLOY_PAYLOAD=%s\n' "$DEPLOY_PAYLOAD" >> "$GITHUB_ENV"
+
+      # 호스트 키 검증 및 SSH 접속 후 배포
+      - name: Deploy application
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: 100.66.12.112
           username: promevious
           port: 22
           key: ${{ secrets.NUVIBE_SSH_PRIVATE_KEY }}
-          fingerprint: SHA256:HlEKYC5U0gdyYjoAPf29iLRL5X35OEsxdsBRT2WhK0o
+          fingerprint: SHA256:fhMly2/oBnITaDynCpQJEFuT1oBpzpJmggxRvPnjYTM
           timeout: 30s
-          command_timeout: 30s
+          command_timeout: 12m
+          envs: DEPLOY_PAYLOAD
           script: |
-            set -eu
-            hostname
-            whoami
-            docker --version
-            docker compose version
+            bash -se <<'DEPLOY'
+            set -euo pipefail
+            set +x
+            umask 077
+
+            # 전달받은 환경변수 복원
+            eval "$(printf '%s' "$DEPLOY_PAYLOAD" | base64 --decode)"
+            unset DEPLOY_PAYLOAD
+
+            # 배포 디렉토리 접근
+            mkdir -p /home/promevious/services/apps/nuvibe
+            cd /home/promevious/services/apps/nuvibe
+
+            # 이번 커밋의 compose 파일 반영
+            printf '%s' "$COMPOSE_HOME_B64" \
+              | base64 --decode > compose.home.yml
+            unset COMPOSE_HOME_B64
+
+            # .env 대신 전달받은 환경변수 사용
+            export COMPOSE_DISABLE_ENV_FILE=1
+
+            # 도커허브 로그인 정보는 임시 보관 후 삭제
+            export DOCKER_CONFIG
+            DOCKER_CONFIG="$(mktemp -d /tmp/nuvibe-docker.XXXXXX)"
+            trap 'rm -f -- "$DOCKER_CONFIG/config.json"; rmdir -- "$DOCKER_CONFIG"' EXIT
+
+            # compose 설정 확인, 비밀값은 출력하지 않음
+            docker compose -f compose.home.yml config --quiet
+
+            # 도커허브 로그인
+            printf '%s\n' "$DOCKERHUB_TOKEN" \
+              | docker login docker.io \
+                  --username "$DOCKERHUB_USERNAME" \
+                  --password-stdin
+            unset DOCKERHUB_TOKEN
+
+            # 이번 커밋의 도커 이미지 다운로드
+            docker compose -f compose.home.yml pull app
+
+            # 앱 실행 후 최대 5분 동안 정상 상태 확인
+            docker compose -f compose.home.yml up \
+              -d \
+              --wait \
+              --wait-timeout 300 \
+              app
+
+            # 배포 결과 확인
+            docker compose -f compose.home.yml ps
+            echo "Nuvibe 배포 완료"
+            DEPLOY
