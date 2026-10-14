@@ -82,7 +82,7 @@ jobs:
           username: promevious
           port: 22
           key: ${{ secrets.NUVIBE_SSH_PRIVATE_KEY }}
-          fingerprint: SHA256:HlEKYC5U0gdyYjoAPf29iLRL5X35OEsxdsBRT2WhK0o
+          fingerprint: SHA256:fhMly2/oBnITaDynCpQJEFuT1oBpzpJmggxRvPnjYTM
           timeout: 30s
           command_timeout: 30s
           script: |
