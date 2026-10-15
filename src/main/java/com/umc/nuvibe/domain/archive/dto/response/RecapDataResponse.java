@@ -14,11 +14,11 @@ public record RecapDataResponse (
         ImageTag tag,
         String imageUrl
     ) {
-        public static ImageDetail from(Image image){
+        public static ImageDetail from(Image image, String imageUrl){
             return new ImageDetail(
                     image.getId(),
                     image.getImageTag(),
-                    image.getThumbnailUrl() // 썸네일 URL 반환
+                    imageUrl // 썸네일 URL 반환
             );
         }
     }

@@ -14,10 +14,10 @@ public record BoardImageResponse(
 ) {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yy.MM.dd");
 
-    public static BoardImageResponse from(BoardImage boardImage) {
+    public static BoardImageResponse from(BoardImage boardImage, String imageUrl) {
         return new BoardImageResponse(
             boardImage.getImage().getId(),
-            boardImage.getImage().getThumbnailUrl(), // 썸네일 URL 반환
+            imageUrl, // 썸네일 URL 반환
             boardImage.getImage().getImageTag(),
             formatUploadTime(boardImage.getCreatedAt())
         );

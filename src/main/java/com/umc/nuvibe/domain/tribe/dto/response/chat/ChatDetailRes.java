@@ -28,12 +28,12 @@ public record ChatDetailRes (
         @Schema(description = "현재 사용자가 해당 이미지를 스크랩했는지 여부", example = "true")
         boolean isScraped
 ){
-    public static ChatDetailRes from(Chat chat, boolean isScraped) {
+    public static ChatDetailRes from(Chat chat, boolean isScraped, String imageUrl) {
         Image image = chat.getImage();
         return new ChatDetailRes(
                 chat.getId(),
                 image.getId(),
-                image.getImageUrl(), // 상세 조회는 원본 URL 반환
+                imageUrl, // 상세 조회는 원본 URL 반환
                 image.getImageTag(),
                 chat.getCreatedAt(),
                 isScraped

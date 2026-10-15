@@ -17,11 +17,7 @@ public record BoardDetailResponse(
 ) {
     
     
-    public static BoardDetailResponse from(ArchiveBoard board, List<BoardImage> boardImages) {
-        List<ImageInfo> images = boardImages.stream()
-                .map(ImageInfo::from)
-                .toList();
-        
+    public static BoardDetailResponse from(ArchiveBoard board, List<ImageInfo> images) {
         return new BoardDetailResponse(
                 board.getId(),
                 board.getName(),
@@ -48,11 +44,11 @@ public record BoardDetailResponse(
         LocalDateTime uploadedAt
     ) {
         
-        public static ImageInfo from(BoardImage bi) {
+        public static ImageInfo from(BoardImage bi, String imageUrl) {
             return new ImageInfo(
                     bi.getId(),
                     bi.getImage().getId(),
-                    bi.getImage().getImageUrl(), // 상세 조회는 원본 URL 반환
+                    imageUrl, // 상세 조회는 원본 URL 반환
                     bi.getImage().getImageTag(),
                     bi.getImage().getCreatedAt()
             );

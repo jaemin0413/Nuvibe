@@ -2,6 +2,7 @@ package com.umc.nuvibe.domain.home.service;
 
 import com.umc.nuvibe.domain.archive.dto.BoardOldestImageDto;
 import com.umc.nuvibe.domain.archive.entity.ArchiveBoard;
+import com.umc.nuvibe.domain.archive.entity.BoardImage;
 import com.umc.nuvibe.domain.archive.repository.ArchiveBoardRepository;
 import com.umc.nuvibe.domain.archive.repository.BoardImageRepository;
 import com.umc.nuvibe.domain.home.dto.CategoryTagResponse;
@@ -15,6 +16,7 @@ import com.umc.nuvibe.domain.image.vo.ImageTagCategory;
 import com.umc.nuvibe.domain.tribe.entity.Chat;
 import com.umc.nuvibe.domain.tribe.repository.ChatRepository;
 import com.umc.nuvibe.domain.tribe.repository.TribeRepository;
+import com.umc.nuvibe.global.service.ImageUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class HomeServiceImpl implements HomeService {
         private final ImageRepository imageRepository;
         private final ChatRepository chatRepository;
         private final TribeRepository tribeRepository;
+        private final ImageUrlService imageUrlService;
 
         private static final int MAX_BOARDS = 5;
         private static final int MAX_CATEGORY_TAGS = 15;
@@ -53,7 +56,7 @@ public class HomeServiceImpl implements HomeService {
                                 return new DropMissionResponse(
                                                 tag,
                                                 image.getId(),
-                                                image.getThumbnailUrl()); // 썸네일 URL 반환
+                                                imageUrlService.getThumbnailUrl(image)); // 썸네일 URL 반환
                         }
                 }
 
@@ -75,11 +78,11 @@ public class HomeServiceImpl implements HomeService {
                 List<Long> boardIds = boards.stream().map(ArchiveBoard::getId).toList();
 
                 // 3. 각 보드의 최신 썸네일 조회
-                Map<Long, String> thumbnailMap = boardImageRepository.findLatestByBoardIds(boardIds)
+                Map<Long, BoardImage> thumbnailMap = boardImageRepository.findLatestByBoardIds(boardIds)
                                 .stream()
                                 .collect(Collectors.toMap(
                                                 bi -> bi.getBoard().getId(),
-                                                bi -> bi.getImage().getThumbnailUrl(), // 썸네일 URL 반환
+                                                bi -> bi,
                                                 (existing, replacement) -> existing));
 
                 // 4. 각 보드의 가장 오래된 이미지 업로드 시간 조회 (타입 안전한 DTO 사용)
@@ -98,7 +101,8 @@ public class HomeServiceImpl implements HomeService {
                                 .map(board -> new MyBoardResponse(
                                                 board.getId(),
                                                 board.getName(),
-                                                thumbnailMap.get(board.getId())))
+                                                imageUrlService.getThumbnailUrl(thumbnailMap.containsKey(board.getId())
+                                                        ? thumbnailMap.get(board.getId()).getImage() : null)))
                                 .toList();
         }
 
@@ -126,7 +130,7 @@ public class HomeServiceImpl implements HomeService {
                                         Optional<Image> imageOpt = imageRepository.findTopByImageTagOrderByIdDesc(tag);
                                         return new CategoryTagResponse(
                                                         tag,
-                                                        imageOpt.map(Image::getThumbnailUrl).orElse(null)); // 썸네일 URL 반환
+                                                        imageOpt.map(imageUrlService::getThumbnailUrl).orElse(null)); // 썸네일 URL 반환
                                 })
                                 .toList();
         }
@@ -138,7 +142,7 @@ public class HomeServiceImpl implements HomeService {
                                 tag, TRIBE_IMAGE_COUNT);
 
                 List<String> tribeImageUrls = chats.stream()
-                                .map(chat -> chat.getImage().getThumbnailUrl()) // 썸네일 URL 반환
+                                .map(chat -> imageUrlService.getThumbnailUrl(chat.getImage())) // 썸네일 URL 반환
                                 .toList();
 
                 // 2. 트라이브 ID 조회

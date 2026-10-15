@@ -1,6 +1,7 @@
 package com.umc.nuvibe.domain.tribe.dto.response.scrapedImage;
 
 import com.umc.nuvibe.domain.image.vo.ImageTag;
+import com.umc.nuvibe.domain.tribe.dto.internal.ScrapedImageRow;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -32,4 +33,16 @@ public record ScrapedImageItemRes(
         @Schema(description = "채팅 작성자 닉네임")
         String chatSenderNickname
 ) {
+    public static ScrapedImageItemRes from(ScrapedImageRow row, String imageUrl) {
+        return new ScrapedImageItemRes(
+                row.scrapImageId(),
+                row.image().getId(),
+                imageUrl,
+                row.image().getImageTag(),
+                row.createdAt(),
+                row.chatId(),
+                row.chatSenderId(),
+                row.chatSenderNickname()
+        );
+    }
 }

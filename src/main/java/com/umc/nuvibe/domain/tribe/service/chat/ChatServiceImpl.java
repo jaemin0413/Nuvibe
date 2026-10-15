@@ -23,6 +23,7 @@ import com.umc.nuvibe.global.apiPayLoad.error.ImageErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.error.TribeErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.error.UserTribeErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.exception.BusinessException;
+import com.umc.nuvibe.global.service.ImageUrlService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -57,6 +58,7 @@ public class ChatServiceImpl implements ChatService {
     private final SimpMessagingTemplate messagingTemplate;
 
     private final FcmService fcmService;
+    private final ImageUrlService imageUrlService;
 
     @Override
     @Transactional(readOnly = true)
@@ -116,7 +118,8 @@ public class ChatServiceImpl implements ChatService {
                         chat,
                         emojiSummaryMap.getOrDefault(chat.getId(), List.of()),
                         myEmojiMap.get(chat.getId()),
-                        myScrapMap.getOrDefault(chat.getImage().getId(), false)
+                        myScrapMap.getOrDefault(chat.getImage().getId(), false),
+                        imageUrlService.getThumbnailUrl(chat.getImage())
                 ))
                 .toList();
 
@@ -164,7 +167,8 @@ public class ChatServiceImpl implements ChatService {
 
         // 6. dto로 매핑
         List<ChatGridItemRes> items = pageItems.stream()
-                .map(ChatGridItemRes::from)
+                .map(chat -> ChatGridItemRes.from(
+                        chat, imageUrlService.getThumbnailUrl(chat.getImage())))
                 .toList();
 
         // 7. 다음 커서 계산 (hasNext=true일 때만)
@@ -194,7 +198,7 @@ public class ChatServiceImpl implements ChatService {
                 chat.getImage().getId()
         );
 
-        return ChatDetailRes.from(chat, isScraped);
+        return ChatDetailRes.from(chat, isScraped, imageUrlService.getOriginalUrl(chat.getImage()));
     }
 
     @Override
@@ -252,7 +256,7 @@ public class ChatServiceImpl implements ChatService {
                 chat.getId(),
                 userId,
                 image.getId(),
-                image.getThumbnailUrl(), // 썸네일 URL 반환
+                imageUrlService.getThumbnailUrl(image), // 썸네일 URL 반환
                 chat.getCreatedAt()
         );
 
