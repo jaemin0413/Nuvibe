@@ -38,12 +38,13 @@ public record ChatTimelineItemRes(
             Chat chat,
             List<EmojiSummaryRes> reactionsSummary,
             EmojiType myReactionType,
-            boolean isScrapped
+            boolean isScrapped,
+            String imageUrl
     ) {
         return new ChatTimelineItemRes(
                 chat.getId(),
                 chat.getImage().getId(),
-                chat.getImage().getThumbnailUrl(), // 썸네일 URL 반환
+                imageUrl, // 썸네일 URL 반환
                 chat.getCreatedAt(),
                 SenderRes.from(chat.getUser()),
                 reactionsSummary,

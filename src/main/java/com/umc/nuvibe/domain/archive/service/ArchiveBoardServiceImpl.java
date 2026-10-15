@@ -23,6 +23,7 @@ import com.umc.nuvibe.domain.user.repository.UserRepository;
 import com.umc.nuvibe.global.apiPayLoad.error.ArchiveErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.error.ImageErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.exception.BusinessException;
+import com.umc.nuvibe.global.service.ImageUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class ArchiveBoardServiceImpl implements ArchiveBoardService {
     private final BoardImageRepository boardImageRepository;
     private final UserRepository userRepository;
     private final ImageRepository imageRepository;
+    private final ImageUrlService imageUrlService;
 
     // 보드 목록 조회
     @Override
@@ -60,11 +62,11 @@ public class ArchiveBoardServiceImpl implements ArchiveBoardService {
                 .toList();
 
         // 썸네일 조회 (기존)
-        Map<Long, String> thumbnailMap = boardImageRepository.findLatestByBoardIds(boardIds)
+        Map<Long, BoardImage> thumbnailMap = boardImageRepository.findLatestByBoardIds(boardIds)
                 .stream()
                 .collect(Collectors.toMap(
                         bi -> bi.getBoard().getId(),
-                        bi -> bi.getImage().getThumbnailUrl(), // 썸네일 URL 반환
+                        bi -> bi,
                         (existing, replacement) -> existing
                 ));
 
@@ -79,7 +81,8 @@ public class ArchiveBoardServiceImpl implements ArchiveBoardService {
         return boards.stream()
                 .map(board -> BoardListResponse.from(
                         board,
-                        thumbnailMap.get(board.getId()),
+                        imageUrlService.getThumbnailUrl(thumbnailMap.containsKey(board.getId())
+                                ? thumbnailMap.get(board.getId()).getImage() : null),
                         tagCountMap.getOrDefault(board.getId(), 0L).intValue()  // 태그 없으면 0
                 ))
                 .toList();
@@ -95,7 +98,12 @@ public class ArchiveBoardServiceImpl implements ArchiveBoardService {
                 ? boardImageRepository.findByBoardIdOrderByCreatedAtDesc(boardId)
                 : boardImageRepository.findByBoardIdAndImageTagOrderByCreatedAtDesc(boardId, tag);
         
-        return BoardDetailResponse.from(board, boardImages);
+        List<BoardDetailResponse.ImageInfo> images = boardImages.stream()
+                .map(bi -> BoardDetailResponse.ImageInfo.from(
+                        bi, imageUrlService.getOriginalUrl(bi.getImage())))
+                .toList();
+
+        return BoardDetailResponse.from(board, images);
     }
 
     
@@ -198,7 +206,8 @@ public class ArchiveBoardServiceImpl implements ArchiveBoardService {
         Page<BoardImage> boardImages = boardImageRepository
             .findAllByUserIdOrderByCreatedAtDesc(userId, pageable);
 
-        return boardImages.map(BoardImageResponse::from);
+        return boardImages.map(bi -> BoardImageResponse.from(
+                bi, imageUrlService.getThumbnailUrl(bi.getImage())));
     }
 
     // vibe 톤 입구

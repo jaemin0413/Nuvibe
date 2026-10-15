@@ -1,6 +1,7 @@
 package com.umc.nuvibe.domain.tribe.service.scrapedImage;
 
 import com.umc.nuvibe.domain.image.entity.Image;
+import com.umc.nuvibe.domain.tribe.dto.internal.ScrapedImageRow;
 import com.umc.nuvibe.domain.tribe.dto.request.ScrapedImageSliceReq;
 import com.umc.nuvibe.domain.tribe.dto.response.scrapedImage.ScrapedImageItemRes;
 import com.umc.nuvibe.domain.tribe.dto.response.scrapedImage.ScrapedImageToggleRes;
@@ -15,6 +16,7 @@ import com.umc.nuvibe.domain.user.entity.User;
 import com.umc.nuvibe.domain.user.repository.UserRepository;
 import com.umc.nuvibe.global.apiPayLoad.error.*;
 import com.umc.nuvibe.global.apiPayLoad.exception.BusinessException;
+import com.umc.nuvibe.global.service.ImageUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,7 @@ public class ScrapedImageServiceImpl implements ScrapedImageService {
     private final UserRepository userRepository;
     private final UserTribeRepository userTribeRepository;
     private final ChatRepository chatRepository;
+    private final ImageUrlService imageUrlService;
 
     @Override
     @Transactional
@@ -85,13 +88,17 @@ public class ScrapedImageServiceImpl implements ScrapedImageService {
         Pageable pageable = PageRequest.of(0, limit + 1);
 
         // 2. 첫 페이지인지 여부에 따라 메서드 호출
-        List<ScrapedImageItemRes> scraps = (req.cursorCreatedAt() == null)
+        List<ScrapedImageRow> scraps = (req.cursorCreatedAt() == null)
                 ? scrapedImageRepository.findMyScrapsFirstPage(userId, tribeId, req.imageTag(), pageable)
                 : scrapedImageRepository.findMyScrapsNextPage(userId, tribeId, req.imageTag(), req.cursorCreatedAt(), req.cursorId(), pageable);
 
         // 3. 다음 페이지 여부 판단 및 다음 페이지 존재 시 1개 더 조회한 데이터 삭제 후 반환
         boolean hasNext = scraps.size() > limit;
-        List<ScrapedImageItemRes> items = hasNext ? scraps.subList(0, limit) : scraps;
+        List<ScrapedImageRow> pageItems = hasNext ? scraps.subList(0, limit) : scraps;
+        List<ScrapedImageItemRes> items = pageItems.stream()
+                .map(row -> ScrapedImageItemRes.from(
+                        row, imageUrlService.getThumbnailUrl(row.image())))
+                .toList();
 
         LocalDateTime nextCursorCreatedAt = null;
         Long nextCursorId = null;

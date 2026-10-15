@@ -25,13 +25,13 @@ public record ChatGridItemRes(
         @Schema(description = "채팅 전송자 닉네임")
         String chatSenderNickname
 ) {
-    public static ChatGridItemRes from(Chat chat) {
+    public static ChatGridItemRes from(Chat chat, String imageUrl) {
         Image image = chat.getImage();
         User user = chat.getUser();
         return new ChatGridItemRes(
                 chat.getId(),
                 image.getId(),
-                image.getThumbnailUrl(), // 썸네일 URL 반환
+                imageUrl, // 썸네일 URL 반환
                 chat.getCreatedAt(),
                 user.getNickname()
         );

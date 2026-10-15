@@ -15,6 +15,7 @@ import com.umc.nuvibe.domain.user.repository.UserRepository;
 import com.umc.nuvibe.global.apiPayLoad.error.RecapErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.error.UserErrorCode;
 import com.umc.nuvibe.global.apiPayLoad.exception.BusinessException;
+import com.umc.nuvibe.global.service.ImageUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class RecapServiceImpl implements RecapService {
     private final BoardImageRepository boardImageRepository;
     private final UserRepository userRepository;
     private final ArchiveBoardRepository archiveBoardRepository;
+    private final ImageUrlService imageUrlService;
 
     //기간 계산 함수
     private LocalDateTime calculateStartTime(RecapPeriod period, Long userId){
@@ -111,7 +113,7 @@ public class RecapServiceImpl implements RecapService {
         List<String> boardImageUrls = boardImageRepository.findTopByBoardIdOrderByCreatedAtDesc(
                 board.getId(), PageRequest.of(0, 3))
                 .stream()
-                .map(bi -> bi.getImage().getThumbnailUrl()) // 썸네일 URL 반환
+                .map(bi -> imageUrlService.getThumbnailUrl(bi.getImage())) // 썸네일 URL 반환
                 .toList();
 
 
@@ -196,7 +198,8 @@ public class RecapServiceImpl implements RecapService {
         List<RecapDataResponse.ImageDetail> todayImages =
                 boardImageRepository.findImagesByDate(userId, date)
                         .stream()
-                        .map(RecapDataResponse.ImageDetail::from)
+                        .map(image -> RecapDataResponse.ImageDetail.from(
+                                image, imageUrlService.getThumbnailUrl(image)))
                         .toList();
 
 
@@ -204,7 +207,8 @@ public class RecapServiceImpl implements RecapService {
         List<RecapDataResponse.ImageDetail> lastMonthImageList =
                 boardImageRepository.findImagesByDate(userId, lastMonth)
                         .stream()
-                        .map(RecapDataResponse.ImageDetail::from)
+                        .map(image -> RecapDataResponse.ImageDetail.from(
+                                image, imageUrlService.getThumbnailUrl(image)))
                         .toList();
 
         return new RecapDataResponse(lastMonthImageList, todayImages);
